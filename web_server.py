@@ -1,3 +1,6 @@
+'''
+See https://github.com/python/cpython/blob/main/Lib/http/server.py
+'''
 from http.server import HTTPServer, HTTPStatus, BaseHTTPRequestHandler
 import sys
 
