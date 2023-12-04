@@ -1,22 +1,37 @@
 '''
-See https://docs.python.org/3/library/asyncio-stream.html#tcp-echo-server-using-streams
+https://github.com/python/cpython/blob/main/Lib/http/server.py
+https://docs.python.org/3/library/asyncio-stream.html#tcp-echo-server-using-streams
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
+https://ruslanspivak.com/lsbaws-part1/
 '''
 import asyncio
+from http.server import HTTPStatus
+
+
+PROTOCOL = 'HTTP/1.1'
 
 
 async def handle_request(reader, writer):
-    data = await reader.read(1024)
-    input_msg = data.decode()
-    addr = writer.get_extra_info('peername')
+    request_line = await reader.readline()
+    headers = []
+    while True:
+        line = await reader.readline()
+        if line.strip():
+            headers.append(line.decode('utf8').strip())
+        else:
+            break
+    method, path, protocol = request_line.decode('utf8').strip().split()
 
-    print(f'Received {input_msg!r} from {addr!r}')
+    if path == '/':
+        status = HTTPStatus.OK
+    else:
+        status = HTTPStatus.NOT_FOUND
 
-    output_msg = 'HTTP/1.1 404 NOT FOUND\r\n\r\n<h1>404 NOT FOUND</h1>'
-    print(f'Send: {output_msg!r}')
+    output_msg = f'{PROTOCOL} {status} {status.phrase}\r\n\r\n'
     writer.write(output_msg.encode('utf8'))
     await writer.drain()
 
-    print('Close the connection')
     writer.close()
     await writer.wait_closed()
 
