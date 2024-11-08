@@ -1,5 +1,7 @@
+#!/usr/bin/env python3
 '''
-See https://github.com/python/cpython/blob/main/Lib/http/server.py
+https://github.com/python/cpython/blob/main/Lib/http/server.py
+https://ruslanspivak.com/lsbaws-part1/
 '''
 from http.server import HTTPServer, HTTPStatus, BaseHTTPRequestHandler
 import sys
@@ -14,11 +16,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         self.log_request()
-        self.send_response_only(HTTPStatus.OK)
+        if self.path == '/':
+            status = HTTPStatus.OK
+            text = '200 ok'
+        else:
+            status = HTTPStatus.NOT_FOUND
+            text = '404 not found'
+
+        self.send_response_only(status)
         self.send_header('Server', self.version_string())
         self.send_header('Date', self.date_time_string())
         self.end_headers()
-        self.wfile.write('response text'.encode('utf8'))
+        self.wfile.write(text.encode('utf8'))
 
     def do_POST(self):
         self.log_request()
