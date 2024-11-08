@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''
 https://github.com/python/cpython/blob/main/Lib/http/server.py
 https://docs.python.org/3/library/asyncio-stream.html#tcp-echo-server-using-streams
