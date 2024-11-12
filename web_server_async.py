@@ -7,10 +7,13 @@ https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages
 https://ruslanspivak.com/lsbaws-part1/
 '''
 import asyncio
+import datetime
 from http.server import HTTPStatus
+import sys
 
 
 PROTOCOL = 'HTTP/1.1'
+SERVER_LINE = 'Server: Apache'
 
 
 async def handle_request(reader, writer):
@@ -26,11 +29,19 @@ async def handle_request(reader, writer):
 
     if path == '/':
         status = HTTPStatus.OK
+        text = '200 OK'
     else:
         status = HTTPStatus.NOT_FOUND
+        text = '404 Not Found'
 
-    output_msg = f'{PROTOCOL} {status} {status.phrase}\r\n\r\n'
-    writer.write(output_msg.encode('utf8'))
+    body = text.encode('utf8')
+    status_line = f'{PROTOCOL} {status} {status.phrase}'
+    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    content_length_line = f'Content-Length: {len(body)}'
+    connection_line = 'Connection: close'
+    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
+    output_msg = f'{headers}\r\n\r\n'.encode('utf8') + body
+    writer.write(output_msg)
     await writer.drain()
 
     writer.close()
@@ -47,4 +58,8 @@ async def main(port=8000):
         await server.serve_forever()
 
 
-asyncio.run(main())
+try:
+    asyncio.run(main())
+except KeyboardInterrupt:
+    print("\nKeyboard interrupt received, exiting.")
+    sys.exit(0)

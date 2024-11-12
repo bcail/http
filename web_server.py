@@ -18,10 +18,10 @@ class Handler(BaseHTTPRequestHandler):
         self.log_request()
         if self.path == '/':
             status = HTTPStatus.OK
-            text = '200 ok'
+            text = '200 OK'
         else:
             status = HTTPStatus.NOT_FOUND
-            text = '404 not found'
+            text = '404 Not Found'
 
         self.send_response_only(status)
         self.send_header('Server', self.version_string())
