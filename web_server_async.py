@@ -16,7 +16,7 @@ PROTOCOL = 'HTTP/1.1'
 SERVER_LINE = 'Server: Apache'
 
 
-async def handle_request(reader, writer):
+async def read_request(reader):
     request_line = await reader.readline()
     headers = []
     while True:
@@ -33,23 +33,39 @@ async def handle_request(reader, writer):
     request_body = b''
     if content_length:
         request_body = await reader.read(content_length)
+    return {
+        'method': method,
+        'path': path,
+        'protocol': protocol,
+        'headers': headers,
+        'body': request_body,
+    }
 
-    if path == '/':
+
+def response_bytes(status, body):
+    status_line = f'{PROTOCOL} {status} {status.phrase}'
+    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    content_length_line = f'Content-Length: {len(body)}'
+    connection_line = 'Connection: close'
+    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
+    return f'{headers}\r\n\r\n'.encode('utf8') + body
+
+
+async def handle_request(reader, writer):
+    request = await read_request(reader)
+
+    if request['path'] == '/':
         status = HTTPStatus.OK
-        if method == 'POST':
-            body = request_body
+        if request['method'] == 'POST':
+            body = request['body']
         else:
             body = '200 OK'.encode('utf8')
     else:
         status = HTTPStatus.NOT_FOUND
         body = '404 Not Found'.encode('utf8')
 
-    status_line = f'{PROTOCOL} {status} {status.phrase}'
-    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    content_length_line = f'Content-Length: {len(body)}'
-    connection_line = 'Connection: close'
-    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
-    output_msg = f'{headers}\r\n\r\n'.encode('utf8') + body
+    output_msg = response_bytes(status, body)
+
     writer.write(output_msg)
     await writer.drain()
 
