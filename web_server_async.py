@@ -26,15 +26,24 @@ async def handle_request(reader, writer):
         else:
             break
     method, path, protocol = request_line.decode('utf8').strip().split()
+    content_length = 0
+    for h in headers:
+        if 'content-length' in h.lower():
+            content_length = int(h.split(':')[1].strip())
+    request_body = b''
+    if content_length:
+        request_body = await reader.read(content_length)
 
     if path == '/':
         status = HTTPStatus.OK
-        text = '200 OK'
+        if method == 'POST':
+            body = request_body
+        else:
+            body = '200 OK'.encode('utf8')
     else:
         status = HTTPStatus.NOT_FOUND
-        text = '404 Not Found'
+        body = '404 Not Found'.encode('utf8')
 
-    body = text.encode('utf8')
     status_line = f'{PROTOCOL} {status} {status.phrase}'
     date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
     content_length_line = f'Content-Length: {len(body)}'
