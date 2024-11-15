@@ -42,18 +42,7 @@ async def read_request(reader):
     }
 
 
-def response_bytes(status, body):
-    status_line = f'{PROTOCOL} {status} {status.phrase}'
-    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    content_length_line = f'Content-Length: {len(body)}'
-    connection_line = 'Connection: close'
-    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
-    return f'{headers}\r\n\r\n'.encode('utf8') + body
-
-
-async def handle_request(reader, writer):
-    request = await read_request(reader)
-
+def get_response(request):
     if request['path'] == '/':
         status = HTTPStatus.OK
         if request['method'] == 'POST':
@@ -63,8 +52,27 @@ async def handle_request(reader, writer):
     else:
         status = HTTPStatus.NOT_FOUND
         body = '404 Not Found'.encode('utf8')
+    return {
+        'status': status,
+        'body': body
+    }
 
-    output_msg = response_bytes(status, body)
+
+def response_bytes(response):
+    status_line = f'{PROTOCOL} {response["status"]} {response["status"].phrase}'
+    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    content_length_line = f'Content-Length: {len(response["body"])}'
+    connection_line = 'Connection: close'
+    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
+    return f'{headers}\r\n\r\n'.encode('utf8') + response['body']
+
+
+async def handle_request(reader, writer):
+    request = await read_request(reader)
+
+    response = get_response(request)
+
+    output_msg = response_bytes(response)
 
     writer.write(output_msg)
     await writer.drain()
