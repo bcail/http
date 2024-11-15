@@ -76,21 +76,24 @@ async def read_request(reader):
     }
 
 
+def log(message):
+    print(f'{datetime.datetime.now()} {message}')
+
+
 async def handle_request(reader, writer):
-    print('***********')
-    request = await read_request(reader)
-    print(request)
+    try:
+        request = await read_request(reader)
+        response = get_response(request)
 
-    response = get_response(request)
-    print(response)
+        output_msg = response_bytes(response)
 
-    output_msg = response_bytes(response)
+        writer.write(output_msg)
+        await writer.drain()
 
-    writer.write(output_msg)
-    await writer.drain()
-
-    writer.close()
-    await writer.wait_closed()
+        writer.close()
+        await writer.wait_closed()
+    except Exception as e:
+        log(str(e))
 
 
 async def main(port=8000):
@@ -106,5 +109,4 @@ async def main(port=8000):
 try:
     asyncio.run(main())
 except KeyboardInterrupt:
-    print("\nKeyboard interrupt received, exiting.")
     sys.exit(0)
