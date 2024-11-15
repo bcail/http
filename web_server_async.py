@@ -8,69 +8,81 @@ https://ruslanspivak.com/lsbaws-part1/
 '''
 import asyncio
 import datetime
-from http.server import HTTPStatus
 import sys
 
 
-PROTOCOL = 'HTTP/1.1'
-SERVER_LINE = 'Server: Apache'
-
-
-async def read_request(reader):
-    request_line = await reader.readline()
-    headers = []
-    while True:
-        line = await reader.readline()
-        if line.strip():
-            headers.append(line.decode('utf8').strip())
-        else:
-            break
-    method, path, protocol = request_line.decode('utf8').strip().split()
-    content_length = 0
-    for h in headers:
-        if 'content-length' in h.lower():
-            content_length = int(h.split(':')[1].strip())
-    request_body = b''
-    if content_length:
-        request_body = await reader.read(content_length)
-    return {
-        'method': method,
-        'path': path,
-        'protocol': protocol,
-        'headers': headers,
-        'body': request_body,
-    }
-
-
 def get_response(request):
-    if request['path'] == '/':
-        status = HTTPStatus.OK
+    path = request['path']
+    headers = {}
+    body = b''
+    if path == '/':
+        status = 200
         if request['method'] == 'POST':
             body = request['body']
         else:
             body = '200 OK'.encode('utf8')
     else:
-        status = HTTPStatus.NOT_FOUND
+        status = 404
         body = '404 Not Found'.encode('utf8')
     return {
         'status': status,
-        'body': body
+        'headers': headers,
+        'body': body,
     }
 
 
+RESPONSE_STATUSES = {
+    200: 'OK',
+    404: 'Not Found'
+}
+
+
 def response_bytes(response):
-    status_line = f'{PROTOCOL} {response["status"]} {response["status"].phrase}'
+    if response['body'] and 'Content-Length' not in response['headers']:
+        response['headers']['Content-Length'] = len(response['body'])
+    status_line = f'HTTP/1.1 {response["status"]} {RESPONSE_STATUSES[response["status"]]}'
     date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    content_length_line = f'Content-Length: {len(response["body"])}'
-    connection_line = 'Connection: close'
-    headers = '\r\n'.join([status_line, SERVER_LINE, date_line, content_length_line, connection_line])
+    headers = '\r\n'.join([status_line, date_line, 'Server: Apache'] + [f'{header}: {value}' for header, value in response['headers'].items()])
     return f'{headers}\r\n\r\n'.encode('utf8') + response['body']
 
 
+async def read_request(reader):
+    request_line = await reader.readline()
+    headers = {}
+    while True:
+        line = await reader.readline()
+        header_line = line.decode('utf8').strip()
+        if header_line:
+            header, value = header_line.split(':', maxsplit=1)
+            headers[header.lower()] = value.strip()
+        else:
+            break
+    content_length = int(headers.get('content-length', '0'))
+    body = b''
+    if content_length:
+        body = await reader.read(content_length)
+    method, path, protocol = request_line.decode('utf8').strip().split()
+    if '?' in path:
+        path, query = path.split('?')
+    else:
+        query = ''
+    return {
+        'protocol': protocol,
+        'method': method,
+        'path': path,
+        'query': query,
+        'headers': headers,
+        'body': body,
+    }
+
+
 async def handle_request(reader, writer):
+    print('***********')
     request = await read_request(reader)
+    print(request)
 
     response = get_response(request)
+    print(response)
 
     output_msg = response_bytes(response)
 
