@@ -15,6 +15,7 @@ def get_response(request):
     path = request['path']
     headers = {}
     body = b''
+
     if path == '/':
         status = 200
         if request['method'] == 'POST':
@@ -31,9 +32,14 @@ def get_response(request):
     }
 
 
+def log(message):
+    print(f'{datetime.datetime.now()} {message}')
+
+
 RESPONSE_STATUSES = {
     200: 'OK',
-    404: 'Not Found'
+    401: 'Unauthorized',
+    404: 'Not Found',
 }
 
 
@@ -76,10 +82,6 @@ async def read_request(reader):
     }
 
 
-def log(message):
-    print(f'{datetime.datetime.now()} {message}')
-
-
 async def handle_request(reader, writer):
     try:
         request = await read_request(reader)
@@ -106,7 +108,8 @@ async def main(port=8000):
         await server.serve_forever()
 
 
-try:
-    asyncio.run(main())
-except KeyboardInterrupt:
-    sys.exit(0)
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        sys.exit(0)
