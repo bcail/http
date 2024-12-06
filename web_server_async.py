@@ -116,9 +116,9 @@ async def main(port=8000, handler=None):
         await server.serve_forever()
 
 
-def run():
+def run(handler=None):
     try:
-        asyncio.run(main())
+        asyncio.run(main(handler=handler))
     except KeyboardInterrupt:
         sys.exit(0)
 
