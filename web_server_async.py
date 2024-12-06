@@ -8,11 +8,12 @@ https://ruslanspivak.com/lsbaws-part1/
 '''
 import asyncio
 import datetime
+from functools import partial
 import io
 import sys
 
 
-def get_response(request):
+def default_handler(request):
     path = request['path']
     headers = {}
     body = b''
@@ -83,10 +84,10 @@ def response_header_bytes(response):
     return f'{headers}\r\n\r\n'.encode('utf8')
 
 
-async def handle_request(reader, writer):
+async def handle_request(reader, writer, handler):
     try:
         request = await read_request(reader)
-        response = get_response(request)
+        response = handler(request)
 
         headers = response_header_bytes(response)
 
@@ -103,9 +104,11 @@ async def handle_request(reader, writer):
         log(str(e))
 
 
-async def main(port=8000):
+async def main(port=8000, handler=None):
+    if not handler:
+        handler = default_handler
     server = await asyncio.start_server(
-        handle_request, '127.0.0.1', port)
+        partial(handle_request, handler=handler), '127.0.0.1', port)
 
     print(f'Serving on port {port}')
 
