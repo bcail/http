@@ -8,6 +8,7 @@ https://ruslanspivak.com/lsbaws-part1/
 '''
 import asyncio
 import datetime
+import io
 import sys
 
 
@@ -19,16 +20,18 @@ def get_response(request):
     if path == '/':
         status = 200
         if request['method'] == 'POST':
-            body = request['body']
+            body = request['body'].read()
         else:
             body = '200 OK'.encode('utf8')
     else:
         status = 404
         body = '404 Not Found'.encode('utf8')
+    if body:
+        headers['Content-Length'] = len(body)
     return {
         'status': status,
         'headers': headers,
-        'body': body,
+        'body': io.BytesIO(body),
     }
 
 
@@ -41,15 +44,6 @@ RESPONSE_STATUSES = {
     401: 'Unauthorized',
     404: 'Not Found',
 }
-
-
-def response_bytes(response):
-    if response['body'] and 'Content-Length' not in response['headers']:
-        response['headers']['Content-Length'] = len(response['body'])
-    status_line = f'HTTP/1.1 {response["status"]} {RESPONSE_STATUSES[response["status"]]}'
-    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    headers = '\r\n'.join([status_line, date_line, 'Server: Apache'] + [f'{header}: {value}' for header, value in response['headers'].items()])
-    return f'{headers}\r\n\r\n'.encode('utf8') + response['body']
 
 
 async def read_request(reader):
@@ -78,8 +72,15 @@ async def read_request(reader):
         'path': path,
         'query': query,
         'headers': headers,
-        'body': body,
+        'body': io.BytesIO(body),
     }
+
+
+def response_header_bytes(response):
+    status_line = f'HTTP/1.1 {response["status"]} {RESPONSE_STATUSES[response["status"]]}'
+    date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+    headers = '\r\n'.join([status_line, date_line, 'Server: Apache'] + [f'{header}: {value}' for header, value in response['headers'].items()])
+    return f'{headers}\r\n\r\n'.encode('utf8')
 
 
 async def handle_request(reader, writer):
@@ -87,10 +88,14 @@ async def handle_request(reader, writer):
         request = await read_request(reader)
         response = get_response(request)
 
-        output_msg = response_bytes(response)
+        headers = response_header_bytes(response)
 
-        writer.write(output_msg)
+        writer.write(headers)
         await writer.drain()
+
+        if response['body']:
+            writer.write(response['body'].read())
+            await writer.drain()
 
         writer.close()
         await writer.wait_closed()
