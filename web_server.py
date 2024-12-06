@@ -15,7 +15,7 @@ class Handler(BaseHTTPRequestHandler):
         self.log_message('"%s" path="%s"', self.requestline, self.path)
 
     def do_GET(self):
-        self.log_request()
+        # self.log_request()
         if self.path == '/':
             status = HTTPStatus.OK
             text = '200 OK'
@@ -30,7 +30,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(text.encode('utf8'))
 
     def do_POST(self):
-        self.log_request()
+        # self.log_request()
         self.send_response_only(HTTPStatus.OK)
         self.send_header('Server', self.version_string())
         self.send_header('Date', self.date_time_string())
@@ -39,7 +39,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main(port=8000):
     with HTTPServer(('', port), Handler) as httpd:
-        print(f'Serving on port {port}...')
+        print(f'Serving on port {port}')
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
