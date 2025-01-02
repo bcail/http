@@ -102,6 +102,8 @@ async def handle_request(reader, writer, handler):
         await writer.wait_closed()
     except Exception as e:
         log(str(e))
+        writer.close()
+        await writer.wait_closed()
 
 
 async def main(port=8000, handler=None):
