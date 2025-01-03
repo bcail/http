@@ -87,7 +87,11 @@ def response_header_bytes(response):
 async def handle_request(reader, writer, handler):
     try:
         request = await read_request(reader)
-        response = handler(request)
+        try:
+            response = handler(request)
+        except Exception as e:
+            log(f'handler error: {e}')
+            response = {'status': 500, 'headers': {}}
 
         headers = response_header_bytes(response)
 
