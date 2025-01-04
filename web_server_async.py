@@ -80,7 +80,7 @@ async def read_request(reader):
 def response_header_bytes(response):
     status_line = f'HTTP/1.1 {response["status"]} {RESPONSE_STATUSES[response["status"]]}'
     date_line = 'Date: %s' % datetime.datetime.now(datetime.timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
-    headers = '\r\n'.join([status_line, date_line, 'Server: Apache'] + [f'{header}: {value}' for header, value in response['headers'].items()])
+    headers = '\r\n'.join([status_line, date_line, 'Server: Apache'] + [f'{header}: {value}' for header, value in response.get('headers', {}).items()])
     return f'{headers}\r\n\r\n'.encode('utf8')
 
 
@@ -91,7 +91,7 @@ async def handle_request(reader, writer, handler):
             response = handler(request)
         except Exception as e:
             log(f'handler error: {e}')
-            response = {'status': 500, 'headers': {}}
+            response = {'status': 500}
 
         headers = response_header_bytes(response)
 
